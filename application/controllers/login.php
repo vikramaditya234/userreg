@@ -61,8 +61,7 @@ class Login extends CI_Controller {
             $data['password'] = $this->input->post('password');
             $data['cpassword'] = $this->input->post('cpassword');
             $data['email'] = $this->input->post('email');
-            $ret = $this->login_model->create_user($data);
-            if ($ret == true)
+            if (($ret = $this->login_model->create_user($data)) == true)
                 $this->load->view('signup_success');
             else
                 $this->load->view('signup', $ret);
