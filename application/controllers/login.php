@@ -15,29 +15,33 @@ class Login extends CI_Controller {
 
     // Show login form and perform login
     public function index() {
+        // Check if the user is already logged in
+        if (($ret = $this->login_model->isUserLogin()) == TRUE) {
+            // User is already logged in show the success page
+            $this->load->view('login_sucess', $ret);
+            return;
+        }
         $this->load->helper('form');
         $this->load->library('form_validation');
         $data['title'] = 'Login form';
-        $this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email');
-        $this->form_validation->set_rules('password', 'Password', 'required|trim|md5');
-        if ($this->form_validation->run() === FALSE){
-            $this->form_validation->set_message('email', 'Invalid email');
-            $this->form_validation->set_message('password', 'Invalid password');
+        if ($this->form_validation->run('login') === FALSE){
+            $this->load->view('login');
         }
         else {
             $data['email'] = $this->input->post('email');
             $data['password'] = $this->input->post('password');
-            if ($this->login_model->login_user($data) == true)
-                $this->load->view('login_sucess');
+            if ($this->login_model->loginUser($data) === FALSE) {
+                log_message('debug', 'invalid login');
+                $this->load->view('login', array('err' => 'Invalid username or password'));
+            }
             else
-                $this->load->view('login', $ret);
+                $this->load->view('login_sucess', $ret);
         }
-        $this->load->view('login');
     }
 
     // Perform user logout
     public function doLogout() {
-        $this->login_model->logout_user()
+        $this->login_model->logoutUser();
         $this->load->view('logout');
     }
 
@@ -45,72 +49,70 @@ class Login extends CI_Controller {
     public function doSignup() {
         $this->load->helper('form');
         $this->load->library('form_validation');
-        $data['title'] = 'Signup form';
-        $this->form_validation->set_rules('name', 'Name', 'required|trim|xss_clean');
-        $this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email|is_unique[users.email]');
-        $this->form_validation->set_rules('password', 'Password', 'required|matches[cpassword]|min_length[8]|md5');
-        $this->form_validation->set_rules('cpassword', 'Confirm password', 'required|trim');
-        if ($this->form_validation->run() === FALSE){
-            $this->form_validation->set_message('name', 'Invalid name');
-            $this->form_validation->set_message('password', 'Invalid password');
-            $this->form_validation->set_message('cpassword', 'Invalid confirm password');
-            $this->form_validation->set_message('email', 'Invalid email');
+        // Validate the form
+        if ($this->form_validation->run('signup') === FALSE){
+            // Invalid input by the user show the signup form
+            $this->load->view('signup');
         }
         else {
-            $data['name'] = $this->input->post('name');
+            $data['firstname'] = $this->input->post('firstname');
+            $data['lastname'] = $this->input->post('lastname');
             $data['password'] = $this->input->post('password');
-            $data['cpassword'] = $this->input->post('cpassword');
             $data['email'] = $this->input->post('email');
-            if (($ret = $this->login_model->create_user($data)) == true)
-                $this->load->view('signup_success');
-            else
-                $this->load->view('signup', $ret);
+            // Create the user and show success page if done
+            $key = $this->login_model->createUser($data);
+            $this->load->helper('email');
+            $account_activation_email = $this->load->view('accountactivationemail', array('key' => $key, 'names' => $data), TRUE);
+            send_email($data['email'], 'New user account activation key', $account_activation_email);
+            $this->load->view('signup_success');
         }
-        $this->load->view('signup');
     }
 
     // Show forgot password form
     public function forgotPassword() {
         $this->load->helper('form');
         $this->load->library('form_validation');
-        $data['title'] = 'Forgot password form';
-        $this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email');
-        if ($this->form_validation->run() === FALSE){
-            $this->form_validation->set_message('email', 'Invalid email');
+        if ($this->form_validation->run('forgot_password') === FALSE){
+            $this->load->view('forgotpwd');
         }
         else {
             $email = $this->input->post('email');
-            $ret = $this->login_model->create_user();
-            if ($ret == true)
-                $this->load->view('signup_success');
-            else
-                $this->load->view('signup', $ret);
+            if (($key = $this->login_model->createForgotPasswordKey($email)) == FALSE) {
+                $this->load->view('forgotpwd', array('err', FORGOT_PASS_MAILING_ERR));
+                return;
+            }
+            $this->load->model('profile_model');
+            $this->load->helper('email');
+            $user_names = $this->profile_model->get(array('firstname', 'lastname'), array('email' => $email));
+            $forgot_pwd_email = $this->load->view('forgotpwdemail', array('key' => $key, 'names' => $user_name), TRUE);
+            send_email($email, 'Password reset', $forgot_pwd_email);
+            $this->load->view('signup', array('success' => FORGOT_PASS_LINK_SUCCESS));
         }
-        $this->load->view('forgotpwd');
     }
 
     // Reset password form
-    public function resetPassword() {
+    public function resetPassword($key = null) {
+        if ($key != null) {
+            // check if this is a valid key
+            if ($this->login_model->isValidKey($key) == FALSE) {
+                $this->load->view('reset_password', array('err' => FORGOT_PASS_INVALID_LINK_ERR));
+                return;
+            }
+        }
         $this->load->helper('form');
         $this->load->library('form_validation');
-        $data['title'] = 'Reset password form';
-        $this->form_validation->set_rules('password', 'Password', 'required|matches[cpassword]|min_length[8]|md5');
-        $this->form_validation->set_rules('cpassword', 'Confirm password', 'required|trim');
-        if ($this->form_validation->run() === FALSE){
-            $this->form_validation->set_message('password', 'Invalid password');
-            $this->form_validation->set_message('cpassword', 'Invalid confirm password');
+        if ($this->form_validation->run('reset_password') === FALSE){
+            $this->load->view('reset_password');
         }
         else {
             $data['password'] = $this->input->post('password');
             $data['cpassword'] = $this->input->post('cpassword');
-            $ret = $this->login_model->create_user($data);
-            if ($ret == true)
-                $this->load->view('resetpwd_success');
+            $ret = $this->login_model->resetPassword($data);
+            if ($ret == TRUE)
+                $this->load->view('reset_password_success');
             else
-                $this->load->view('resetpwd', $ret);
+                $this->load->view('reset_password', $ret);
         }
-        $this->load->view('resetpwd');
-
     }
 }
 

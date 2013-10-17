@@ -36,6 +36,16 @@ define('FOPEN_READ_WRITE_CREATE',				'a+b');
 define('FOPEN_WRITE_CREATE_STRICT',				'xb');
 define('FOPEN_READ_WRITE_CREATE_STRICT',		'x+b');
 
+// Types of users
+define('SUPER_USER', 0);
+define('ADMIN_USER', 1);
+define('REGULAR_USER', 3);
 
+// Error messages
+define('FORGOT_PASS_INVALID_LINK_ERR', 'Invalid link. Use forgot password link to send the mail again');
+define('FORGOT_PASS_MAILING_ERR', 'Error sending password reset mail');
+
+// Success messages
+define('FORGOT_PASS_LINK_SUCCESS', 'Link to reset password sent through mail');
 /* End of file constants.php */
 /* Location: ./application/config/constants.php */
