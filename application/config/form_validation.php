@@ -52,7 +52,7 @@ $config = array(
                 array(
                     'field' => 'password',
                     'label' => 'Password',
-                    'rules' => 'required|matches[cpassword]|min_length[8]|md5'
+                    'rules' => 'required|matches[passconf]|min_length[8]|md5'
                 ),
                 array(
                     'field' => 'passconf',
@@ -60,27 +60,5 @@ $config = array(
                     'rules' => 'required|trim'
                 ),
             ),
-            'email' => array(
-                array(
-                    'field' => 'emailaddress',
-                    'label' => 'EmailAddress',
-                    'rules' => 'required|valid_email'
-                ),
-                array(
-                    'field' => 'name',
-                    'label' => 'Name',
-                    'rules' => 'required|alpha'
-                ),
-                array(
-                    'field' => 'title',
-                    'label' => 'Title',
-                    'rules' => 'required'
-                ),
-                array(
-                    'field' => 'message',
-                    'label' => 'MessageBody',
-                    'rules' => 'required'
-                )
-            )                          
-);
+        );
 ?>
