@@ -34,8 +34,10 @@ class Login extends CI_Controller {
                 log_message('debug', 'invalid login');
                 $this->load->view('login', array('err' => 'Invalid username or password'));
             }
-            else
+            else if($this->login_model->isAccountActive($data['email']))
                 $this->load->view('login_sucess', $ret);
+            else
+                $this->load->view('login_sucess', array('err', 'This account is not active, please activate the account to login'));
         }
     }
 
@@ -62,7 +64,10 @@ class Login extends CI_Controller {
             // Create the user and show success page if done
             $key = $this->login_model->createUser($data);
             $this->load->helper('email');
-            $account_activation_email = $this->load->view('accountactivationemail', array('key' => $key, 'names' => $data), TRUE);
+            $this->load->helper('url');
+            $activation_link = site_url('login/activateAccount/'.$key);
+            $account_activation_email = $this->load->view('accountactivationemail', array('link' => $activation_link, 'names' => $data), TRUE);
+            log_message('debug', 'account activation mail: '.$account_activation_email);
             send_email($data['email'], 'New user account activation key', $account_activation_email);
             $this->load->view('signup_success');
         }
@@ -83,36 +88,53 @@ class Login extends CI_Controller {
             }
             $this->load->model('profile_model');
             $this->load->helper('email');
+            $this->load->helper('url');
             $user_names = $this->profile_model->get(array('firstname', 'lastname'), array('email' => $email));
-            $forgot_pwd_email = $this->load->view('forgotpwdemail', array('key' => $key, 'names' => $user_name), TRUE);
+            $forgot_pwd_link = site_url('login/resetPassword/'.$key);
+            $forgot_pwd_email = $this->load->view('forgotpwdemail', array('link' => $forgot_pwd_link, 'names' => $user_names), TRUE);
+            log_message('debug', 'forgotpassword mail: '.$forgot_pwd_email);
             send_email($email, 'Password reset', $forgot_pwd_email);
-            $this->load->view('signup', array('success' => FORGOT_PASS_LINK_SUCCESS));
+            $this->load->view('forgotpwd', array('success' => FORGOT_PASS_LINK_SUCCESS));
         }
     }
 
     // Reset password form
     public function resetPassword($key = null) {
-        if ($key != null) {
-            // check if this is a valid key
-            if ($this->login_model->isValidKey($key) == FALSE) {
-                $this->load->view('reset_password', array('err' => FORGOT_PASS_INVALID_LINK_ERR));
-                return;
-            }
+        // check if this is a valid key
+        if (($userid = $this->login_model->isValidResetKey($key)) == FALSE) {
+            $this->load->view('error_page', array('err' => FORGOT_PASS_INVALID_LINK_ERR));
+            return;
         }
+        $this->load->view('reset_password', array('key' => $key));
+
+        // Key is valid create the form
         $this->load->helper('form');
         $this->load->library('form_validation');
         if ($this->form_validation->run('reset_password') === FALSE){
-            $this->load->view('reset_password');
         }
         else {
             $data['password'] = $this->input->post('password');
-            $data['cpassword'] = $this->input->post('cpassword');
+            $data['userid'] = $userid;
             $ret = $this->login_model->resetPassword($data);
             if ($ret == TRUE)
                 $this->load->view('reset_password_success');
             else
                 $this->load->view('reset_password', $ret);
         }
+    }
+
+    // Activate the account
+    public function activateAccount($key = null) {
+        if ($key != null) {
+            // check if this is a valid key
+            if (($user_info = $this->login_model->isValidActivateKey($key)) == FALSE) {
+                $this->load->view('activate_account', array('err' => ACTIVATE_ACCOUNT_INVALID_LINK_ERR));
+                return;
+            }
+        }
+        // Activate the account
+        $this->login_model->activateAccount($user_info['userid']);
+        $this->load->view('activate_account', $user_info);
     }
 }
 
