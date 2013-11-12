@@ -43,6 +43,7 @@ define('REGULAR_USER', 3);
 
 // Error messages
 define('FORGOT_PASS_INVALID_LINK_ERR', 'Invalid link. Use forgot password link to send the mail again');
+define('ACTIVATE_ACCOUNT_INVALID_LINK_ERR', 'Invalid link. Follow the instruction to send the mail again');
 define('FORGOT_PASS_MAILING_ERR', 'Error sending password reset mail');
 
 // Success messages
